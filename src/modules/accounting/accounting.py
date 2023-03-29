@@ -41,6 +41,7 @@ class Accounting(BaseModule, ConsensusModule):
         self.bunker_service = BunkerService(self.w3)
 
     def execute_module(self, last_finalized_blockstamp: BlockStamp) -> ModuleExecuteDelay:
+        # 获取区块信息 包括执行层的 时间戳、块高等
         report_blockstamp = self.get_blockstamp_for_report(last_finalized_blockstamp)
 
         if report_blockstamp:
@@ -126,6 +127,7 @@ class Accounting(BaseModule, ConsensusModule):
         logger.info({'msg': 'Fetch processing state.', 'value': ps})
         return ps
 
+    # 核心计算上报的内容
     def _calculate_report(self, blockstamp: ReferenceBlockStamp) -> ReportData:
         validators_count, cl_balance = self._get_consensus_lido_state(blockstamp)
 

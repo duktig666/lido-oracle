@@ -52,6 +52,7 @@ class BaseModule(ABC):
 
     @timeout(variables.MAX_CYCLE_LIFETIME_IN_SECONDS)
     def _cycle_handler(self):
+        # 获取 finalized beacon区块信息
         blockstamp = self._receive_last_finalized_slot()
 
         if blockstamp.slot_number > self._slot_threshold:

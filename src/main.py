@@ -87,6 +87,7 @@ def main(module_name: OracleModule):
         accounting = Accounting(web3)
         accounting.check_contract_configs()
         accounting.run_as_daemon()
+        #  todo  EJECTOR 上报的内容是什么？ 对应什么预言机？
     elif module_name == OracleModule.EJECTOR:
         logger.info({'msg': 'Initialize Ejector module.'})
         ejector = Ejector(web3)
