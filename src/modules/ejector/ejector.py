@@ -50,10 +50,26 @@ class Ejector(BaseModule, ConsensusModule):
         d. Recalculate withdraw epoch
 
     4. Decode lido validators into bytes and send report transaction
+
+    模块根据提取请求的stETH值弹出lido验证器。
+
+    流:
+    1. 计算以ETH支付的提款金额。
+    2. 计算每个纪元的ETH奖励预测。
+    3.为下一个验证器计算提取纪元
+    循环:
+    a.计算我们得到的预测奖励，直到我们到达撤回纪元
+    b.检查弹出验证器+预测奖励+当前余额是否足以完成提现请求
+    —如果为True，弹出列表中的所有验证器。结束。
+    c.获取下一个要弹出的验证器。
+    d.重新计算提取历元
+
+    4. 解码lido验证器字节和发送报告事务
     """
     CONSENSUS_VERSION = 1
     CONTRACT_VERSION = 1
 
+    # 平均预期提款横扫持续时间乘数
     AVG_EXPECTING_WITHDRAWALS_SWEEP_DURATION_MULTIPLIER = 0.5
 
     def __init__(self, w3: Web3):
@@ -95,6 +111,7 @@ class Ejector(BaseModule, ConsensusModule):
         ).as_tuple()
 
     def get_validators_to_eject(self, blockstamp: ReferenceBlockStamp) -> list[tuple[NodeOperatorGlobalIndex, LidoValidator]]:
+        # 返回队列中尚未完成的stETH的数量  获得全部未完成的提现请求金额
         to_withdraw_amount = self.get_total_unfinalized_withdrawal_requests_amount(blockstamp)
         logger.info({'msg': 'Calculate to withdraw amount.', 'value': to_withdraw_amount})
 
@@ -103,16 +120,21 @@ class Ejector(BaseModule, ConsensusModule):
 
         chain_config = self.get_chain_config(blockstamp)
 
+        # 计算每个epoch的奖励
         rewards_speed_per_epoch = self.prediction_service.get_rewards_per_epoch(blockstamp, chain_config)
         logger.info({'msg': 'Calculate average rewards speed per epoch.', 'value': rewards_speed_per_epoch})
 
+        # 计算全网要扫描的epoch
         epochs_to_sweep = self._get_sweep_delay_in_epochs(blockstamp)
         logger.info({'msg': 'Calculate epochs to sweep.', 'value': epochs_to_sweep})
 
+        # ！！！ total_available_balance = el_vault_balance + withdrawal_balance + buffer_ether
         total_available_balance = self._get_total_el_balance(blockstamp)
         logger.info({'msg': 'Calculate available balance.', 'value': total_available_balance})
 
+        # 获取最近请求但未退出的验证器
         validators_going_to_exit = self.validators_state_service.get_recently_requested_but_not_exited_validators(blockstamp, chain_config)
+        # 获取最近请求但未退出的验证器的余额
         going_to_withdraw_balance = sum(map(
             self._get_predicted_withdrawable_balance,
             validators_going_to_exit,
@@ -262,7 +284,9 @@ class Ejector(BaseModule, ConsensusModule):
         validators = self.w3.cc.get_validators(blockstamp)
 
         total_withdrawable_validators = len(list(filter(lambda validator: (
+            # 判断validator是否可以部分提款
             is_partially_withdrawable_validator(validator) or
+            # 判断验证者是否可以全额提款
             is_fully_withdrawable_validator(validator, blockstamp.ref_epoch)
         ), validators)))
 

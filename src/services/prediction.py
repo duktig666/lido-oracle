@@ -15,6 +15,7 @@ class RewardsPredictionService:
     def __init__(self, w3: Web3):
         self.w3 = w3
 
+    # todo 奖励计算规则 感觉可以再合约计算
     def get_rewards_per_epoch(
             self,
             blockstamp: ReferenceBlockStamp,

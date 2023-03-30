@@ -32,10 +32,12 @@ class LidoValidatorStateService:
 
     @lru_cache(maxsize=1)
     def get_extra_data(self, blockstamp: ReferenceBlockStamp, chain_config: ChainConfig) -> ExtraData:
+        # todo stuck validator
         stuck_validators = self.get_lido_newly_stuck_validators(blockstamp, chain_config)
         logger.info({'msg': 'Calculate stuck validators.', 'value': stuck_validators})
         exited_validators = self.get_lido_newly_exited_validators(blockstamp)
         logger.info({'msg': 'Calculate exited validators.', 'value': exited_validators})
+        # 获取 oracle 的上报限制  todo 上报内容过多是否会出现问题
         orl = self.get_oracle_report_limits(blockstamp)
 
         extra_data = self.extra_data_service.collect(
@@ -57,17 +59,21 @@ class LidoValidatorStateService:
         for global_no_index, validators in lido_validators_by_no.items():
             def sum_stuck_validators(total: int, validator: LidoValidator) -> int:
                 # If validator index is higher than ejected index - we didn't request this validator to exit
+                # 如果验证器索引高于弹出索引-我们没有请求这个验证器退出
                 if int(validator.index) > ejected_index[global_no_index]:
                     return total
 
                 # If validator don't have FAR_FUTURE_EPOCH, then it's already going to exit
+                # 如果验证器没有FAR_FUTURE_EPOCH，那么它已经退出了
                 if int(validator.validator.exit_epoch) != FAR_FUTURE_EPOCH:
                     return total
 
                 # If validator's pub key in recent events, node operator has still time to eject these validators
+                # 如果验证器的pubkey在最近的事件中，节点操作符仍然有时间弹出这些验证器
                 if validator.lido_id.key in recently_requested_to_exit_pubkeys:
                     return total
 
+                # 计算validator可能退出的epoch  推算exit_epoch
                 validator_available_to_exit_epoch = int(validator.validator.activation_epoch) + SHARD_COMMITTEE_PERIOD
                 delinquent_timeout_in_slots = self.get_validator_delinquent_timeout_in_slot(blockstamp)
 

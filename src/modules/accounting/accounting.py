@@ -129,8 +129,11 @@ class Accounting(BaseModule, ConsensusModule):
 
     # 核心计算上报的内容
     def _calculate_report(self, blockstamp: ReferenceBlockStamp) -> ReportData:
+        # 获取共识层验证者的数量和余额
         validators_count, cl_balance = self._get_consensus_lido_state(blockstamp)
 
+        # module.id 即 operator的Id
+        # 获取operatorId集合和对应的新退出validator的数量
         staking_module_ids_list, exit_validators_count_list = self._get_newly_exited_validators_by_modules(blockstamp)
 
         extra_data = self.lido_validator_state_service.get_extra_data(blockstamp, self.get_chain_config(blockstamp))
@@ -144,8 +147,11 @@ class Accounting(BaseModule, ConsensusModule):
             count_exited_validators_by_staking_module=exit_validators_count_list,
             withdrawal_vault_balance=self.w3.lido_contracts.get_withdrawal_balance(blockstamp),
             el_rewards_vault_balance=self.w3.lido_contracts.get_el_vault_balance(blockstamp),
+            # 销毁的份额 stETH
             shares_requested_to_burn=self.get_shares_to_burn(blockstamp),
+            # todo 通过调用获得的提现请求id的递增排序数组
             withdrawal_finalization_batches=self._get_withdrawal_batches(blockstamp),
+            # 计算汇率
             finalization_share_rate=self._get_finalization_shares_rate(blockstamp),
             is_bunker=self._is_bunker(blockstamp),
             extra_data_format=extra_data.format,
